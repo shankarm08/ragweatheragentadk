@@ -1,11 +1,14 @@
 # ragweatheragentadk
 login to cloud
+
 pip install google-cloud-aiplatform
 
 Authentication
+
 gcloud auth application-default login
 
 gcloud auth login
+
 gcloud config set project YOUR_PROJECT_ID
 
 command to create bucket
