@@ -11,6 +11,10 @@ gcloud auth login
 
 gcloud config set project YOUR_PROJECT_ID
 
+to set the location
+
+gcloud config set ai/region us-central1
+
 command to create bucket
 
 gsutil mb -l us-central1 gs://your-bucket-name/
