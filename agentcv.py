@@ -5,6 +5,7 @@
 import os
 import time
 import smtplib
+import numpy as np
 from email.mime.text import MIMEText
 
 import cv2
@@ -12,6 +13,7 @@ import chromadb
 import vertexai
 import pytesseract
 import sounddevice as sd
+import keyboard
 
 from scipy.io.wavfile import write
 
@@ -32,9 +34,24 @@ from vertexai.generative_models import (
 # CONFIG
 # =========================================================
 
-# Environment Variables
+# Set Environment Variables before running:
+#
+# Windows CMD:
+# set PROJECT_ID=your_project_id
+# set BUCKET_NAME=your_bucket_name
+# set EMAIL=your_email@gmail.com
+# set APP_PASSWORD=your_app_password
+# set GOOGLE_APPLICATION_CREDENTIALS=credentials.json
+#
+# Linux/Mac:
+# export PROJECT_ID=your_project_id
+# export BUCKET_NAME=your_bucket_name
+# export EMAIL=your_email@gmail.com
+# export APP_PASSWORD=your_app_password
+# export GOOGLE_APPLICATION_CREDENTIALS=credentials.json
+
 PROJECT_ID = os.getenv("PROJECT_ID")
-LOCATION = "us-central1"
+LOCATION = os.getenv("LOCATION", "us-central1")
 BUCKET_NAME = os.getenv("BUCKET_NAME")
 
 EMAIL = os.getenv("EMAIL")
@@ -44,6 +61,7 @@ APP_PASSWORD = os.getenv("APP_PASSWORD")
 # TESSERACT OCR
 # =========================================================
 
+# Change path if needed
 pytesseract.pytesseract.tesseract_cmd = (
     r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 )
@@ -58,7 +76,7 @@ vertexai.init(
 )
 
 # =========================================================
-# MODELS
+# LOAD MODELS
 # =========================================================
 
 embedding_model = TextEmbeddingModel.from_pretrained(
@@ -104,25 +122,33 @@ def chunk_text(text, size=150):
 
 def load_all_files():
 
-    client = storage.Client()
+    try:
 
-    bucket = client.bucket(BUCKET_NAME)
+        client = storage.Client()
 
-    docs = []
+        bucket = client.bucket(BUCKET_NAME)
 
-    for blob in bucket.list_blobs():
+        docs = []
 
-        if blob.name.endswith(".txt"):
+        for blob in bucket.list_blobs():
 
-            print(f"\n📄 Loading: {blob.name}")
+            if blob.name.endswith(".txt"):
 
-            content = blob.download_as_text()
+                print(f"\n📄 Loading: {blob.name}")
 
-            chunks = chunk_text(content)
+                content = blob.download_as_text()
 
-            docs.extend(chunks)
+                chunks = chunk_text(content)
 
-    return docs
+                docs.extend(chunks)
+
+        return docs
+
+    except Exception as e:
+
+        print("❌ GCS Error:", e)
+
+        return []
 
 # =========================================================
 # LOAD DOCUMENTS
@@ -166,23 +192,31 @@ else:
 
 def retrieve_docs(query, k=5):
 
-    query_embedding = embedding_model.get_embeddings(
-        [query]
-    )[0].values
+    try:
 
-    results = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=k
-    )
+        query_embedding = embedding_model.get_embeddings(
+            [query]
+        )[0].values
 
-    top_docs = results["documents"][0]
+        results = collection.query(
+            query_embeddings=[query_embedding],
+            n_results=k
+        )
 
-    context = "\n".join(top_docs)
+        top_docs = results["documents"][0]
 
-    print("\n🔍 Retrieved Context:\n")
-    print(context)
+        context = "\n".join(top_docs)
 
-    return context
+        print("\n🔍 Retrieved Context:\n")
+        print(context)
+
+        return context
+
+    except Exception as e:
+
+        print("❌ Retrieval Error:", e)
+
+        return ""
 
 # =========================================================
 # EMAIL FUNCTION
@@ -268,6 +302,7 @@ def capture_image(output_file="captured_image.jpg"):
 
             key = cv2.waitKey(1)
 
+            # SPACE KEY
             if key == 32:
 
                 cv2.imwrite(
@@ -279,6 +314,7 @@ def capture_image(output_file="captured_image.jpg"):
 
                 break
 
+            # ESC KEY
             elif key == 27:
 
                 output_file = None
@@ -372,6 +408,7 @@ def agent(query):
 
     q = query.lower()
 
+    # EMAIL MODE
     is_email = any(
         word in q
         for word in [
@@ -381,6 +418,7 @@ def agent(query):
         ]
     )
 
+    # OCR MODE
     is_ocr = any(
         word in q
         for word in [
@@ -393,6 +431,7 @@ def agent(query):
         ]
     )
 
+    # VISION MODE
     is_vision = any(
         word in q
         for word in [
@@ -403,6 +442,10 @@ def agent(query):
             "screenshot"
         ]
     )
+
+    # =====================================================
+    # OCR FLOW
+    # =====================================================
 
     if is_ocr:
 
@@ -432,6 +475,10 @@ User Question:
 
             answer = "❌ No image captured."
 
+    # =====================================================
+    # VISION FLOW
+    # =====================================================
+
     elif is_vision:
 
         image_path = capture_image()
@@ -446,6 +493,10 @@ User Question:
         else:
 
             answer = "❌ No image captured."
+
+    # =====================================================
+    # RAG FLOW
+    # =====================================================
 
     else:
 
@@ -471,6 +522,10 @@ Question:
 
             answer = response.text
 
+    # =====================================================
+    # EMAIL SUPPORT
+    # =====================================================
+
     if is_email:
 
         result = send_email(
@@ -483,4 +538,204 @@ Question:
 
     return answer
 
-print("\n🎙️ Secure Multimodal RAG Agent Ready")
+# =========================================================
+# RECORD AUDIO
+# =========================================================
+
+def record_audio_dynamic(
+    filename="input.wav",
+    fs=16000
+):
+
+    try:
+
+        print("\n🎤 Press ENTER to start recording")
+        keyboard.wait("enter")
+
+        print("🔴 Recording... Press ENTER again to stop")
+
+        recording = []
+
+        def callback(indata, frames, time, status):
+
+            recording.append(indata.copy())
+
+        with sd.InputStream(
+            samplerate=fs,
+            channels=1,
+            dtype="int16",
+            callback=callback
+        ):
+
+            keyboard.wait("enter")
+
+        audio = np.concatenate(
+            recording,
+            axis=0
+        )
+
+        write(
+            filename,
+            fs,
+            audio
+        )
+
+        print(f"✅ Audio saved: {filename}")
+
+        return filename
+
+    except Exception as e:
+
+        print("❌ Recording Error:", e)
+
+        return None
+
+# =========================================================
+# SPEECH TO TEXT
+# =========================================================
+
+def speech_to_text(audio_file):
+
+    try:
+
+        client = speech.SpeechClient()
+
+        with open(audio_file, "rb") as f:
+
+            content = f.read()
+
+        audio = speech.RecognitionAudio(
+            content=content
+        )
+
+        config = speech.RecognitionConfig(
+            encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
+            sample_rate_hertz=16000,
+            language_code="en-US"
+        )
+
+        response = client.recognize(
+            config=config,
+            audio=audio
+        )
+
+        if response.results:
+
+            return response.results[0].alternatives[0].transcript
+
+        return ""
+
+    except Exception as e:
+
+        print("❌ Speech Error:", e)
+
+        return ""
+
+# =========================================================
+# TEXT TO SPEECH
+# =========================================================
+
+def text_to_speech(
+    text,
+    output_file="output.mp3"
+):
+
+    try:
+
+        client = texttospeech.TextToSpeechClient()
+
+        synthesis_input = texttospeech.SynthesisInput(
+            text=text
+        )
+
+        voice = texttospeech.VoiceSelectionParams(
+            language_code="en-US"
+        )
+
+        audio_config = texttospeech.AudioConfig(
+            audio_encoding=texttospeech.AudioEncoding.MP3
+        )
+
+        response = client.synthesize_speech(
+            input=synthesis_input,
+            voice=voice,
+            audio_config=audio_config
+        )
+
+        with open(output_file, "wb") as out:
+
+            out.write(response.audio_content)
+
+        print("\n🔊 Playing response...")
+
+        os.system(
+            f"start wmplayer {output_file}"
+        )
+
+    except Exception as e:
+
+        print("❌ TTS Error:", e)
+
+# =========================================================
+# MAIN LOOP
+# =========================================================
+
+print("\n🎙️ Multimodal OCR Voice RAG Agent Ready\n")
+
+while True:
+
+    try:
+
+        sd.stop()
+
+        # =================================================
+        # RECORD AUDIO
+        # =================================================
+
+        audio_file = record_audio_dynamic()
+
+        if not audio_file:
+            continue
+
+        # =================================================
+        # SPEECH TO TEXT
+        # =================================================
+
+        query = speech_to_text(audio_file)
+
+        print("\n🗣 You said:")
+        print(query)
+
+        if not query:
+            continue
+
+        # =================================================
+        # EXIT
+        # =================================================
+
+        if "exit" in query.lower():
+
+            print("\n👋 Exiting...")
+
+            break
+
+        # =================================================
+        # AI RESPONSE
+        # =================================================
+
+        answer = agent(query)
+
+        print("\n🤖 Answer:\n")
+        print(answer)
+
+        # =================================================
+        # TEXT TO SPEECH
+        # =================================================
+
+        text_to_speech(answer)
+
+    except Exception as e:
+
+        print("\n❌ Error:", e)
+
+    print("\n" + "=" * 60 + "\n")
