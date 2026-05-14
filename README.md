@@ -21,6 +21,8 @@ gsutil mb -l us-central1 gs://your-bucket-name/
 
 list the bucket
 gsutil ls
+Enable vertex ai
+gcloud services enable aiplatform.googleapis.com
 
 #alternative command to create
 gcloud storage buckets create gs://my-rag-bucket-98231 --location=us-central1
