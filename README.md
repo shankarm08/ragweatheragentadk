@@ -21,6 +21,7 @@ gsutil mb -l us-central1 gs://your-bucket-name/
 
 list the bucket
 gsutil ls
+gsutil ls gs://bucketname/
 Enable vertex ai
 gcloud services enable aiplatform.googleapis.com
 
