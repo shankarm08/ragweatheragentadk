@@ -68,10 +68,21 @@ gcloud services enable speech.googleapis.com
 gcloud services enable texttospeech.googleapis.com
 
 
-
-
-
-
-
-
 gcloud storage ls  gs://my-rag-bucket-98231/
+
+**AGENTCV** 
+
+pip install opencv-python chromadb google-cloud-aiplatform google-cloud-storage google-cloud-speech google-cloud-texttospeech pytesseract sounddevice scipy
+
+gcloud auth application-default login
+
+
+
+
+
+
+
+
+
+
+
