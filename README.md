@@ -41,5 +41,27 @@ gsutil cp *.txt gs://my-rag-bucket-98231/
 
 to check the file in the bucket
 
+AgentChroma
+pip install chromadb google-cloud-aiplatform google-cloud-storage google-cloud-speech google-cloud-texttospeech sounddevice scipy
+
+
+authenticate
+gcloud auth application-default login
+
+set the project
+gcloud config set project rag-project-495007
+
+enable apis
+gcloud services enable aiplatform.googleapis.com
+gcloud services enable storage.googleapis.com
+gcloud services enable speech.googleapis.com
+gcloud services enable texttospeech.googleapis.com
+
+
+
+
+
+
+
 
 gcloud storage ls  gs://my-rag-bucket-98231/
