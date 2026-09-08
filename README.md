@@ -42,6 +42,8 @@ gsutil cp *.txt gs://my-rag-bucket-98231/
 to check the file in the bucket
 
 AgentChroma
+
+
 pip install chromadb google-cloud-aiplatform google-cloud-storage google-cloud-speech google-cloud-texttospeech sounddevice scipy
 
 
