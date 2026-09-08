@@ -24,8 +24,11 @@ gsutil ls
 gsutil ls gs://bucketname/
 
 #Enable billing for the current project
+
 gcloud billing projects link my-rag-project-12345 \
     --billing-account=BILLING_ACCOUNT_ID
+
+
 Enable vertex ai
 gcloud services enable aiplatform.googleapis.com
 
