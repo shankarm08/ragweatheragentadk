@@ -40,4 +40,6 @@ gcloud storage buckets create gs://my-rag-bucket-98231 --location=us-central1
 gsutil cp *.txt gs://my-rag-bucket-98231/
 
 to check the file in the bucket
+
+
 gcloud storage ls  gs://my-rag-bucket-98231/
